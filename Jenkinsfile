@@ -1,50 +1,30 @@
 pipeline {
     agent any
 
-    environment {
-        DOCKERHUB_CREDENTIALS = credentials('dockerhub-creds')
-        IMAGE_NAME = "krishna8123/chatpulse"
-    }
-
     stages {
-
         stage('Checkout') {
             steps {
-                checkout scm
+                git branch: 'main',
+                    url: 'https://github.com/Krishna8123/Chatpulse.git'
             }
         }
 
         stage('Build Maven Project') {
             steps {
-                sh "mvn clean package -DskipTests"
+                bat 'mvn clean package -DskipTests'
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Docker Build') {
             steps {
-                sh "docker build -t ${IMAGE_NAME}:latest ."
+                bat 'docker build -t chatpulse-app .'
             }
         }
 
-        stage('Login to Docker Hub') {
+        stage('Docker Compose Deploy') {
             steps {
-                sh "echo ${DOCKERHUB_CREDENTIALS_PSW} | docker login -u ${DOCKERHUB_CREDENTIALS_USR} --password-stdin"
-            }
-        }
-
-        stage('Push Docker Image') {
-            steps {
-                sh "docker push ${IMAGE_NAME}:latest"
-            }
-        }
-
-        stage('Deploy') {
-            steps {
-                sh """
-                docker compose down
-                docker compose pull
-                docker compose up -d --build
-                """
+                bat 'docker compose down -v'
+                bat 'docker compose up -d --build'
             }
         }
     }
