@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ChatPulse - Chat</title>
+    <link rel="stylesheet" th:href="@{/css/style.css}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="nav-left">
+            <form th:action="@{/logout}" method="post" style="display: inline;">
+                <button type="submit" class="btn-logout">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </form>
+        </div>
+        <div class="nav-center">
+            <h1 class="app-name"style="cursor:pointer;" onclick="goToHomeScreen()">ChatPulse</h1>
+        </div>
+        <div class="nav-right">
+            <span>Hi, <span th:text="${username}"></span></span>
+        </div>
+    </nav>
+
+    <div class="chat-container">
+        <!-- Left Sidebar -->
+        <div class="sidebar-left">
+            <div class="sidebar-icon" id="themeToggle" title="Toggle Dark Mode">
+                <i class="fas fa-moon"></i>
+            </div>
+            <div class="sidebar-icon" id="addChatBtn" title="Add New Chat">
+                <i class="fas fa-plus"></i>
+            </div>
+        </div>
+
+        <!-- Main Chat Area -->
+        <div class="main-area">
+            <div id="chatContent" class="chat-content">
+                <div class="welcome-message">
+                    <h2>Welcome to ChatPulse!</h2>
+                    <p>Select a chat from the sidebar to start messaging</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Sidebar -->
+        <div class="sidebar-right">
+            <div class="sidebar-section">
+                <h3 class="sidebar-title">
+                    <i class="fas fa-bell"></i> Requests
+                </h3>
+                <div id="requestsList" class="requests-list">
+                    <div th:each="request : ${pendingRequests}" class="request-item" th:attr="data-request-id=${request.id}">
+                        <div class="request-info">
+                            <strong th:text="${request.requestType == 'PRIVATE' ? request.sender.username : request.groupName}"></strong>
+                            <span th:text="${request.requestType == 'PRIVATE' ? 'Private Chat' : 'Group Invite'}"></span>
+                        </div>
+                        <div class="request-actions">
+                            <button class="btn-accept" th:attr="onclick='acceptRequest(' + ${request.id} + ', &quot;' + ${request.requestType} + '&quot;)'">
+                                <i class="fas fa-check"></i>
+                            </button>
+                            <button class="btn-reject" th:attr="onclick='rejectRequest(' + ${request.id} + ')'">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div th:if="${#lists.isEmpty(pendingRequests)}" class="empty-state">
+                        No pending requests
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <h3 class="sidebar-title">
+                    <i class="fas fa-user"></i> Private Chats
+                </h3>
+                <div id="privateChatsList" class="chats-list">
+                    <div th:each="chat : ${privateChats}" class="chat-item" 
+                         th:attr="onclick='loadChat(' + ${chat.id} + ')'" 
+                         th:text="${chat.name}">
+                    </div>
+                    <div th:if="${#lists.isEmpty(privateChats)}" class="empty-state">
+                        No private chats
+                    </div>
+                </div>
+            </div>
+
+            <div class="sidebar-section">
+                <h3 class="sidebar-title">
+                    <i class="fas fa-users"></i> Group Chats
+                </h3>
+                <div id="groupChatsList" class="chats-list">
+                    <div th:each="chat : ${groupChats}" class="chat-item" 
+                         th:attr="onclick='loadChat(' + ${chat.id} + ')'" 
+                         th:text="${chat.name}">
+                    </div>
+                    <div th:if="${#lists.isEmpty(groupChats)}" class="empty-state">
+                        No group chats
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Add Chat Modal -->
+    <div id="addChatModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Add New Chat</h2>
+            <div class="modal-tabs">
+                <button class="tab-btn active" onclick="showTab('private')">Private Chat</button>
+                <button class="tab-btn" onclick="showTab('group')">Group Chat</button>
+            </div>
+            
+            <div id="privateTab" class="tab-content active">
+                <form id="privateChatForm">
+                    <div class="form-group">
+                        <label>Phone Number</label>
+                        <input type="text" id="privatePhone" placeholder="Enter 10-digit phone number" 
+                               pattern="[0-9]{10}" required>
+                    </div>
+                    <button type="submit" class="btn-primary">Send Request</button>
+                </form>
+            </div>
+            
+            <div id="groupTab" class="tab-content">
+                <form id="groupChatForm">
+                    <div class="form-group">
+                        <label>Group Name</label>
+                        <input type="text" id="groupName" placeholder="Enter group name" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Member Phone Numbers (comma-separated)</label>
+                        <textarea id="groupPhones" placeholder="1234567890,9876543210" required></textarea>
+                    </div>
+                    <button type="submit" class="btn-primary">Create Group</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/sockjs-client@1/dist/sockjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/stompjs@2.3.3/lib/stomp.min.js"></script>
+    <script th:inline="javascript">
+        const currentUserId = /*[[${user.id}]]*/ null;
+        const currentUsername = /*[[${username}]]*/ '';
+        let currentChatId = null;
+        let stompClient = null;
+    </script>
+    <script th:src="@{/js/chat.js}"></script>
+</body>
+</html>
+
